@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   output: "export",
   trailingSlash: true,
   images: { unoptimized: true },
+  basePath: "/Innolead-CEP",
+  assetPrefix: "/Innolead-CEP/",
 };
 
 export default nextConfig;

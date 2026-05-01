@@ -46,7 +46,7 @@ export default function Sidebar({ activeView, setActiveView, collapsed, setColla
         {/* Logo image in a white container so it looks good in both themes */}
         <div style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: "#fff", border: "1px solid var(--border)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
           <img
-            src="/innolead-logo.png"
+            src="/Innolead-CEP/innolead-logo.png"
             alt="Innolead"
             style={{ width: "90%", height: "90%", objectFit: "contain" }}
           />

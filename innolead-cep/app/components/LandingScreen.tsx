@@ -36,7 +36,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 40 }}>
             <div style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: "#fff", border: "1px solid var(--border)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.1)", flexShrink: 0 }}>
-              <img src="/innolead-logo.png" alt="Innolead" style={{ width: "85%", height: "85%", objectFit: "contain" }} />
+              <img src="/Innolead-CEP/innolead-logo.png" alt="Innolead" style={{ width: "85%", height: "85%", objectFit: "contain" }} />
             </div>
             <div>
               <div style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 800, fontSize: 22, color: "var(--text-heading)", lineHeight: 1.1 }}>INNOLEAD</div>
@@ -77,7 +77,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
           {/* Form logo */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: "#fff", border: "1px solid var(--border)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-              <img src="/innolead-logo.png" alt="Innolead" style={{ width: "85%", height: "85%", objectFit: "contain" }} />
+              <img src="/Innolead-CEP/innolead-logo.png" alt="Innolead" style={{ width: "85%", height: "85%", objectFit: "contain" }} />
             </div>
           </div>
 
