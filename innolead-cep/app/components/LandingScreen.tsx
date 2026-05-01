@@ -28,7 +28,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
   }
 
   return (
-    <div className="grid-bg" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-base)", padding: 24 }}>
+    <div className="grid-bg" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-base)", padding: "60px 24px" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 80, maxWidth: 1100, width: "100%", alignItems: "center" }}>
 
         {/* Left: branding */}
