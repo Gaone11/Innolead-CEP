@@ -88,6 +88,14 @@ export async function extractText(file: File): Promise<string> {
     return extractDocxText(file);
   }
 
+  if (ext === "xlsx" || ext === "xls") {
+    return extractExcelText(file);
+  }
+
+  if (ext === "pptx") {
+    return extractPptxText(file);
+  }
+
   // Fallback: try reading as text
   return file.text();
 }
@@ -116,6 +124,48 @@ async function extractDocxText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value;
+}
+
+async function extractExcelText(file: File): Promise<string> {
+  const XLSX = await import("xlsx");
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+  const sheets: string[] = [];
+  for (const name of workbook.SheetNames) {
+    const sheet = workbook.Sheets[name];
+    const text = XLSX.utils.sheet_to_csv(sheet);
+    sheets.push(`[Sheet: ${name}]\n${text}`);
+  }
+  return sheets.join("\n\n");
+}
+
+async function extractPptxText(file: File): Promise<string> {
+  const JSZip = (await import("jszip")).default;
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const slides: string[] = [];
+
+  // PPTX slides are stored as XML in ppt/slides/slide*.xml
+  const slideFiles = Object.keys(zip.files)
+    .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+    .sort((a, b) => {
+      const numA = parseInt(a.match(/slide(\d+)/)?.[1] ?? "0");
+      const numB = parseInt(b.match(/slide(\d+)/)?.[1] ?? "0");
+      return numA - numB;
+    });
+
+  for (const path of slideFiles) {
+    const xml = await zip.files[path].async("text");
+    // Extract text content from <a:t> tags
+    const textMatches = xml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+    const texts = textMatches.map(m => m.replace(/<[^>]+>/g, "").trim()).filter(Boolean);
+    if (texts.length > 0) {
+      const slideNum = path.match(/slide(\d+)/)?.[1] ?? "?";
+      slides.push(`[Slide ${slideNum}]\n${texts.join(" ")}`);
+    }
+  }
+
+  return slides.join("\n\n");
 }
 
 // ── Keyword Extraction ──

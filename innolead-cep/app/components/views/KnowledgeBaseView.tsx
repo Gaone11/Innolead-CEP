@@ -37,7 +37,7 @@ export default function KnowledgeBaseView() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      const allowed = ["pdf", "docx", "txt", "csv", "md"];
+      const allowed = ["pdf", "docx", "txt", "csv", "md", "xlsx", "xls", "pptx"];
 
       if (!allowed.includes(ext)) {
         setUploadStatus("error");
@@ -174,7 +174,7 @@ export default function KnowledgeBaseView() {
           }
         }}
       >
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.csv,.md" multiple onChange={handleFileUpload} style={{ display: "none" }} />
+        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.csv,.md,.xlsx,.xls,.pptx" multiple onChange={handleFileUpload} style={{ display: "none" }} />
         <div style={{ width: 56, height: 56, borderRadius: 16, background: `rgba(var(--accent-rgb),0.1)`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <FileUp size={26} color="var(--accent)" />
         </div>
@@ -182,7 +182,7 @@ export default function KnowledgeBaseView() {
           Drop files here or click to upload
         </div>
         <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-          Supports PDF, DOCX, TXT, CSV, MD
+          Supports PDF, DOCX, Excel, PowerPoint, TXT, CSV, MD
         </div>
       </div>
 
@@ -265,7 +265,7 @@ export default function KnowledgeBaseView() {
             No documents yet
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", maxWidth: 400, margin: "0 auto", lineHeight: 1.6 }}>
-            Upload PDF, DOCX, TXT, or CSV files to train the AI Agent. The agent will use your uploaded content to provide contextual, document-informed responses.
+            Upload PDF, DOCX, Excel, PowerPoint, TXT, or CSV files to train the AI Agent. The agent will use your uploaded content to provide contextual, document-informed responses.
           </div>
         </div>
       )}
@@ -275,7 +275,7 @@ export default function KnowledgeBaseView() {
         <h3 style={{ margin: "0 0 16px", fontFamily: "Montserrat, sans-serif", fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>How It Works</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
           {[
-            { step: "1", title: "Upload Documents", desc: "Add your organisation's policies, frameworks, and reference material in PDF, DOCX, TXT, or CSV format." },
+            { step: "1", title: "Upload Documents", desc: "Add your organisation's policies, frameworks, and reference material in PDF, DOCX, Excel, PowerPoint, TXT, or CSV format." },
             { step: "2", title: "Text & Keywords Extracted", desc: "The platform extracts full text and identifies key topics from each document automatically." },
             { step: "3", title: "AI Agent Uses Content", desc: "When users ask the AI Agent questions, it searches your knowledge base to provide informed, contextual answers." },
           ].map(item => (
