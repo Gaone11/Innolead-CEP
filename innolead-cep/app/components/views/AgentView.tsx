@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Brain, User, Zap, RefreshCw, Download, Calendar, BarChart3, BookOpen } from "lucide-react";
+import { Send, Brain, User, Zap, RefreshCw, Download, Calendar, BarChart3, BookOpen, Database } from "lucide-react";
+import { getAllDocuments, searchDocuments } from "../../lib/knowledgeBase";
 
 interface Message {
   id: number;
@@ -47,13 +48,38 @@ const suggestedPrompts = [
   "What's my next best action?",
 ];
 
-function getAgentResponse(input: string) {
+function getHardcodedResponse(input: string) {
   const lower = input.toLowerCase();
   if (lower.includes("governance") || lower.includes("board") || lower.includes("compliance")) return agentResponses.governance;
   if (lower.includes("execut") || lower.includes("project") || lower.includes("delivery")) return agentResponses.execution;
   if (lower.includes("workshop") || lower.includes("session") || lower.includes("consultant") || lower.includes("book")) return agentResponses.workshop;
   if (lower.includes("help") || lower.includes("what can") || lower.includes("who are")) return agentResponses.help;
   return agentResponses.default;
+}
+
+async function getAgentResponse(input: string): Promise<{ content: string; actions?: { label: string; view?: string; icon: string }[] }> {
+  // Try knowledge base first
+  try {
+    const docs = await getAllDocuments();
+    if (docs.length > 0) {
+      const results = searchDocuments(input, docs);
+      if (results.length > 0) {
+        const top = results.slice(0, 3);
+        const snippets = top.map((r, i) => `**${i + 1}. From "${r.doc.name}":**\n${r.snippet}`).join("\n\n");
+        return {
+          content: `Based on your knowledge base documents, here's what I found:\n\n${snippets}\n\n${top.length > 1 ? `I found relevant information across **${top.length} documents**. ` : ""}Would you like me to go deeper into any of these topics?`,
+          actions: [
+            { label: "View My Results", view: "results", icon: "chart" },
+            { label: "Browse Toolkits", view: "toolkits", icon: "book" },
+          ],
+        };
+      }
+    }
+  } catch {
+    // IndexedDB unavailable — fall through to hardcoded
+  }
+
+  return getHardcodedResponse(input);
 }
 
 function formatContent(text: string) {
@@ -85,7 +111,12 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
   ]);
   const [input, setInput]       = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [kbCount, setKbCount]   = useState(0);
   const bottomRef               = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getAllDocuments().then(docs => setKbCount(docs.length)).catch(() => {});
+  }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
 
@@ -94,8 +125,8 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
     setMessages(prev => [...prev, { id: Date.now(), role: "user", content: text, timestamp: "Now" }]);
     setInput("");
     setIsTyping(true);
-    setTimeout(() => {
-      const response = getAgentResponse(text);
+    setTimeout(async () => {
+      const response = await getAgentResponse(text);
       setIsTyping(false);
       setMessages(prev => [...prev, { id: Date.now() + 1, role: "agent", content: response.content, timestamp: "Just now", actions: response.actions }]);
     }, 1800);
@@ -231,6 +262,17 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
             </div>
           ))}
         </div>
+
+        {kbCount > 0 && (
+          <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <Database size={14} color="var(--accent)" />
+              <span style={{ fontSize: 12, color: "var(--accent)", fontFamily: "Montserrat, sans-serif", fontWeight: 700 }}>KNOWLEDGE BASE</span>
+            </div>
+            <div style={{ fontSize: 22, fontFamily: "Montserrat, sans-serif", fontWeight: 800, color: "var(--text-heading)", marginBottom: 4 }}>{kbCount}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>document{kbCount !== 1 ? "s" : ""} loaded</div>
+          </div>
+        )}
 
         <div style={{ background: `linear-gradient(135deg, rgba(var(--accent-rgb),0.08), rgba(0,123,95,0.06))`, border: `1px solid rgba(var(--accent-rgb),0.18)`, borderRadius: 14, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>

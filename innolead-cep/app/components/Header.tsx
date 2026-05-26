@@ -14,6 +14,7 @@ const viewTitles: Record<string, { title: string; sub: string }> = {
   results:    { title: "My Results",            sub: "Scores, insights and recommendations"        },
   admin:      { title: "Admin & CRM",           sub: "Lead management and analytics"              },
   consultant: { title: "Consultant Portal",     sub: "Briefing notes and client context"          },
+  knowledge:  { title: "Knowledge Base",        sub: "Upload documents to train the AI Agent"     },
 };
 
 interface HeaderProps {

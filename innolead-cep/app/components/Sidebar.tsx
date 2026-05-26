@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, LayoutDashboard, BookOpen, ClipboardList, MessageSquare, Calendar, BarChart3, Users, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { Brain, LayoutDashboard, BookOpen, ClipboardList, MessageSquare, Calendar, BarChart3, Users, Settings, LogOut, ChevronLeft, ChevronRight, Database } from "lucide-react";
 
 const navItems = [
   { id: "dashboard",  label: "Dashboard",        icon: LayoutDashboard, group: "main"  },
@@ -11,6 +11,7 @@ const navItems = [
   { id: "results",    label: "My Results",       icon: BarChart3,       group: "main"  },
   { id: "admin",      label: "Admin / CRM",      icon: Users,           group: "admin" },
   { id: "consultant", label: "Consultant Portal",icon: Brain,           group: "admin" },
+  { id: "knowledge",  label: "Knowledge Base",   icon: Database,        group: "knowledge" },
 ];
 
 interface SidebarProps {
@@ -19,11 +20,12 @@ interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
   role: string;
+  isAdmin?: boolean;
   onSignOut: () => void;
   onSettings: () => void;
 }
 
-export default function Sidebar({ activeView, setActiveView, collapsed, setCollapsed, role, onSignOut, onSettings }: SidebarProps) {
+export default function Sidebar({ activeView, setActiveView, collapsed, setCollapsed, role, isAdmin, onSignOut, onSettings }: SidebarProps) {
   return (
     <div
       style={{
@@ -121,6 +123,42 @@ export default function Sidebar({ activeView, setActiveView, collapsed, setColla
             </button>
           );
         })}
+
+        {/* Knowledge Base — admin only */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "16px 16px 8px", letterSpacing: 1.5, fontFamily: "Montserrat, sans-serif" }}>AI TRAINING</div>
+            )}
+            {collapsed && <div style={{ margin: "8px 0", borderTop: "1px solid var(--border)" }} />}
+            {navItems.filter(n => n.group === "knowledge").map(item => {
+              const Icon = item.icon;
+              const active = activeView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.id)}
+                  className={active ? "nav-active" : ""}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 12,
+                    padding: collapsed ? "12px 14px" : "11px 16px",
+                    background: active ? undefined : "transparent",
+                    border: "none", cursor: "pointer",
+                    color: active ? "var(--accent)" : "var(--text-secondary)",
+                    textAlign: "left", transition: "all 0.15s ease",
+                    justifyContent: collapsed ? "center" : "flex-start",
+                  }}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon size={18} />
+                  {!collapsed && (
+                    <span style={{ fontSize: 13, fontFamily: "Roboto, sans-serif", fontWeight: active ? 500 : 400 }}>{item.label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* Bottom actions */}

@@ -10,7 +10,7 @@ const features = [
   { icon: Calendar,  color: "#8B5CF6",        title: "Smart Booking Engine",desc: "AI-matched consultant scheduling"          },
 ];
 
-interface LandingScreenProps { onLogin: () => void; }
+interface LandingScreenProps { onLogin: (email: string) => void; }
 
 export default function LandingScreen({ onLogin }: LandingScreenProps) {
   const [email, setEmail]       = useState("james.doe@acme.co.bw");
@@ -24,7 +24,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
     if (!email.trim()) { setError("Please enter your email address."); return; }
     setError("");
     setLoading(true);
-    setTimeout(() => { setLoading(false); onLogin(); }, 1600);
+    setTimeout(() => { setLoading(false); onLogin(email); }, 1600);
   }
 
   return (

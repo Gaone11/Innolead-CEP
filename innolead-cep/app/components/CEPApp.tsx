@@ -11,6 +11,7 @@ import ResultsView from "./views/ResultsView";
 import BookingView from "./views/BookingView";
 import AdminView from "./views/AdminView";
 import ConsultantView from "./views/ConsultantView";
+import KnowledgeBaseView from "./views/KnowledgeBaseView";
 import SearchOverlay from "./SearchOverlay";
 import SettingsModal from "./SettingsModal";
 import LandingScreen from "./LandingScreen";
@@ -26,6 +27,7 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
 
 export default function CEPApp() {
   const [loggedIn, setLoggedIn]               = useState(false);
+  const [userEmail, setUserEmail]             = useState("");
   const [activeView, setActiveView]           = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen]           = useState(false);
@@ -34,6 +36,9 @@ export default function CEPApp() {
   const [role, setRole]                       = useState("client");
   const [signOutConfirm, setSignOutConfirm]   = useState(false);
   const [theme, setTheme]                     = useState<"light" | "dark">("light");
+
+  const ADMIN_EMAILS = ["monti@uhuruai.co", "gaone@uhuruai.co"];
+  const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase());
 
   // Apply theme to <html> element so CSS vars propagate everywhere
   useEffect(() => {
@@ -75,6 +80,7 @@ export default function CEPApp() {
   function confirmSignOut() {
     setSignOutConfirm(false);
     setLoggedIn(false);
+    setUserEmail("");
     setActiveView("dashboard");
     setNotifications(INITIAL_NOTIFICATIONS);
   }
@@ -83,7 +89,7 @@ export default function CEPApp() {
   function handleSidebarSettings() { setSettingsOpen(true); }
 
   if (!loggedIn) {
-    return <LandingScreen onLogin={() => setLoggedIn(true)} />;
+    return <LandingScreen onLogin={(email: string) => { setUserEmail(email); setLoggedIn(true); }} />;
   }
 
   const sidebarWidth = sidebarCollapsed ? 64 : 240;
@@ -98,6 +104,7 @@ export default function CEPApp() {
       case "booking":    return <BookingView />;
       case "admin":      return <AdminView />;
       case "consultant": return <ConsultantView />;
+      case "knowledge":  return <KnowledgeBaseView />;
       default:           return <DashboardView  setActiveView={setActiveView} />;
     }
   };
@@ -110,6 +117,7 @@ export default function CEPApp() {
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
         role={role}
+        isAdmin={isAdmin}
         onSignOut={handleSidebarSignOut}
         onSettings={handleSidebarSettings}
       />
