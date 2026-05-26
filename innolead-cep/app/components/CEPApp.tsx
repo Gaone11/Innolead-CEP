@@ -40,6 +40,14 @@ export default function CEPApp() {
   const ADMIN_EMAILS = ["monti@uhuruai.co", "gaone@uhuruai.co"];
   const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase());
 
+  // Derive user profile from email
+  const userProfiles: Record<string, { name: string; initials: string; org: string }> = {
+    "gaone@uhuruai.co":  { name: "Gaone Molefi",   initials: "GM", org: "Uhuru AI" },
+    "monti@uhuruai.co":  { name: "Monti",           initials: "MO", org: "Uhuru AI" },
+  };
+  const defaultProfile = { name: "James Doe", initials: "JD", org: "Acme Corp" };
+  const userProfile = userProfiles[userEmail.toLowerCase()] || defaultProfile;
+
   // Apply theme to <html> element so CSS vars propagate everywhere
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -137,6 +145,10 @@ export default function CEPApp() {
           setActiveView={setActiveView}
           role={role}
           setRole={setRole}
+          userEmail={userEmail}
+          userName={userProfile.name}
+          userInitials={userProfile.initials}
+          userOrg={userProfile.org}
         />
 
         <main className="grid-bg" style={{ marginTop: 64, flex: 1, padding: 28, minHeight: "calc(100vh - 64px)" }}>

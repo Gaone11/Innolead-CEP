@@ -10,6 +10,10 @@ interface UserMenuProps {
   onNavigate: (v: string) => void;
   role: string;
   setRole: (r: string) => void;
+  userEmail?: string;
+  userName?: string;
+  userInitials?: string;
+  userOrg?: string;
 }
 
 const roles = [
@@ -18,7 +22,7 @@ const roles = [
   { id: "admin",      label: "Administrator", color: "#FF9933"       },
 ];
 
-export default function UserMenu({ onClose, onSettings, onSignOut, onNavigate, role, setRole }: UserMenuProps) {
+export default function UserMenu({ onClose, onSettings, onSignOut, onNavigate, role, setRole, userEmail, userName, userInitials, userOrg }: UserMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,11 +56,11 @@ export default function UserMenu({ onClose, onSettings, onSignOut, onNavigate, r
             display: "flex", alignItems: "center", justifyContent: "center",
             fontFamily: "Montserrat, sans-serif", fontWeight: 800, fontSize: 16, color: "#ffffff",
           }}>
-            JD
+            {userInitials || "JD"}
           </div>
           <div>
-            <div style={{ fontSize: 14, fontFamily: "Montserrat, sans-serif", fontWeight: 700, color: "var(--text-heading)" }}>James Doe</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>james.doe@acme.co.bw</div>
+            <div style={{ fontSize: 14, fontFamily: "Montserrat, sans-serif", fontWeight: 700, color: "var(--text-heading)" }}>{userName || "James Doe"}</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{userEmail || "james.doe@acme.co.bw"}</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -74,7 +78,7 @@ export default function UserMenu({ onClose, onSettings, onSignOut, onNavigate, r
             backgroundColor: "rgba(0,123,95,0.1)", color: "#007B5F",
             fontFamily: "Montserrat, sans-serif", fontWeight: 600,
           }}>
-            Acme Corp
+            {userOrg || "Acme Corp"}
           </div>
         </div>
       </div>

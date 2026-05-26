@@ -13,8 +13,8 @@ const features = [
 interface LandingScreenProps { onLogin: (email: string) => void; }
 
 export default function LandingScreen({ onLogin }: LandingScreenProps) {
-  const [email, setEmail]       = useState("james.doe@acme.co.bw");
-  const [password, setPassword] = useState("••••••••••");
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
@@ -91,6 +91,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
+                placeholder="you@company.com"
                 style={{ width: "100%", backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "Roboto, sans-serif", boxSizing: "border-box" }}
               />
             </div>
@@ -101,6 +102,7 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter any password"
                   style={{ width: "100%", backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 42px 12px 14px", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "Roboto, sans-serif", boxSizing: "border-box" }}
                 />
                 <button type="button" onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex" }}>
@@ -128,8 +130,8 @@ export default function LandingScreen({ onLogin }: LandingScreenProps) {
           </form>
 
           <div style={{ marginTop: 20, padding: 14, backgroundColor: "var(--bg-elevated)", borderRadius: 10, border: `1px solid rgba(var(--accent-rgb),0.15)` }}>
-            <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "Montserrat, sans-serif", fontWeight: 700, marginBottom: 6 }}>DEMO CREDENTIALS</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Email: james.doe@acme.co.bw</div>
+            <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "Montserrat, sans-serif", fontWeight: 700, marginBottom: 6 }}>SIGN IN</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Use your email address to sign in</div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Password: any value</div>
           </div>
 

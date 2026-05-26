@@ -31,12 +31,17 @@ interface HeaderProps {
   setActiveView: (v: string) => void;
   role: string;
   setRole: (r: string) => void;
+  userEmail?: string;
+  userName?: string;
+  userInitials?: string;
+  userOrg?: string;
 }
 
 export default function Header({
   activeView, sidebarCollapsed, notifications,
   onMarkRead, onMarkAllRead, onClearNotification, onClearAllNotifications,
   onOpenSearch, onOpenSettings, onSignOut, setActiveView, role, setRole,
+  userEmail, userName, userInitials, userOrg,
 }: HeaderProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen]   = useState(false);
@@ -109,10 +114,10 @@ export default function Header({
             style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: "none", border: "none", padding: "4px 6px", borderRadius: 8 }}
           >
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, var(--accent), #007B5F)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 13, color: "#fff" }}>
-              JD
+              {userInitials || "JD"}
             </div>
             <div style={{ lineHeight: 1.3 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-heading)" }}>James Doe</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-heading)" }}>{userName || "James Doe"}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "capitalize" }}>{role}</div>
             </div>
             <ChevronDown size={14} color="var(--text-muted)" />
@@ -125,6 +130,10 @@ export default function Header({
               onNavigate={setActiveView}
               role={role}
               setRole={setRole}
+              userEmail={userEmail}
+              userName={userName}
+              userInitials={userInitials}
+              userOrg={userOrg}
             />
           )}
         </div>
