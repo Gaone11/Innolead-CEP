@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Brain, User, Zap, RefreshCw, Download, Calendar, BarChart3, BookOpen, Database } from "lucide-react";
+import { Send, Brain, User, Zap, RefreshCw, Database } from "lucide-react";
 import { getAllDocuments, searchDocuments } from "../../lib/knowledgeBase";
 
 interface Message {
@@ -9,56 +9,9 @@ interface Message {
   role: "agent" | "user";
   content: string;
   timestamp: string;
-  actions?: { label: string; view?: string; icon: string }[];
 }
 
-const agentResponses: Record<string, { content: string; actions?: { label: string; view?: string; icon: string }[] }> = {
-  default: {
-    content: "I've analysed your diagnostic results and toolkit usage. Based on your responses, your organisation shows **Medium Maturity** overall (67%). Your biggest opportunity areas are in **Governance** (58%) and **Execution** (52%). Would you like me to walk you through a personalised action plan?",
-    actions: [
-      { label: "View Full Results", view: "results", icon: "chart" },
-      { label: "Book a Workshop", view: "booking", icon: "calendar" },
-    ],
-  },
-  governance: {
-    content: "Most organisations at your governance maturity level struggle with two things: (1) unclear board mandates and (2) inconsistent compliance tracking. I recommend starting with the **Corporate Governance Framework** toolkit — you've already downloaded it. The next step would be a 2-hour governance diagnostic session with one of our Senior Governance Advisors. Shall I check their availability?",
-    actions: [{ label: "Schedule Governance Review", view: "booking", icon: "calendar" }],
-  },
-  execution: {
-    content: "Your execution score (52%) is the most urgent priority. This typically means projects are running over budget or timeline. The **Strategy Execution Toolkit** you downloaded has a 90-day execution sprint template that's worked well for similar organisations. Would you like me to create a customised action plan based on your diagnostic data?",
-    actions: [
-      { label: "View Toolkits", view: "toolkits", icon: "book" },
-      { label: "Download Action Plan Template", icon: "download" },
-    ],
-  },
-  workshop: {
-    content: "Based on your profile, I recommend the **Strategy Execution Workshop** (2 days). This is designed for organisations with medium maturity scores in execution. The workshop is facilitated by one of our Senior Associates and typically results in a 6-month execution roadmap. We have availability next Friday with Thabo Mokoena or the following Tuesday with Dr. Aisha Dlamini. Which do you prefer?",
-    actions: [{ label: "See All Consultants", view: "booking", icon: "calendar" }],
-  },
-  help: {
-    content: "I'm your **Client Guidance Agent** — an AI assistant built to help you navigate your consulting journey on the Innolead platform. I can:\n\n• Explain your diagnostic results in plain language\n• Recommend the right toolkits for your needs\n• Help you choose the right consultant or programme\n• Create action plans based on your assessment data\n• Track your progress and suggest next steps\n\nWhat would you like help with today?",
-  },
-};
-
-const suggestedPrompts = [
-  "What do my diagnostic results mean?",
-  "What workshop do you recommend for me?",
-  "Help me improve my governance score",
-  "How do I improve execution capability?",
-  "What's my next best action?",
-];
-
-function getHardcodedResponse(input: string) {
-  const lower = input.toLowerCase();
-  if (lower.includes("governance") || lower.includes("board") || lower.includes("compliance")) return agentResponses.governance;
-  if (lower.includes("execut") || lower.includes("project") || lower.includes("delivery")) return agentResponses.execution;
-  if (lower.includes("workshop") || lower.includes("session") || lower.includes("consultant") || lower.includes("book")) return agentResponses.workshop;
-  if (lower.includes("help") || lower.includes("what can") || lower.includes("who are")) return agentResponses.help;
-  return agentResponses.default;
-}
-
-async function getAgentResponse(input: string): Promise<{ content: string; actions?: { label: string; view?: string; icon: string }[] }> {
-  // Try knowledge base first
+async function getAgentResponse(input: string): Promise<string> {
   try {
     const docs = await getAllDocuments();
     if (docs.length > 0) {
@@ -66,35 +19,23 @@ async function getAgentResponse(input: string): Promise<{ content: string; actio
       if (results.length > 0) {
         const top = results.slice(0, 3);
         const snippets = top.map((r, i) => `**${i + 1}. From "${r.doc.name}":**\n${r.snippet}`).join("\n\n");
-        return {
-          content: `Based on your knowledge base documents, here's what I found:\n\n${snippets}\n\n${top.length > 1 ? `I found relevant information across **${top.length} documents**. ` : ""}Would you like me to go deeper into any of these topics?`,
-          actions: [
-            { label: "View My Results", view: "results", icon: "chart" },
-            { label: "Browse Toolkits", view: "toolkits", icon: "book" },
-          ],
-        };
+        return `Based on the knowledge base, here's what I found:\n\n${snippets}\n\n${top.length > 1 ? `I found relevant information across **${top.length} documents**. ` : ""}Would you like me to go deeper into any of these topics?`;
       }
+      return "I searched the knowledge base but couldn't find a direct match for your question. Could you try rephrasing, or ask about a topic covered in the uploaded documents?";
     }
   } catch {
-    // IndexedDB unavailable — fall through to hardcoded
+    // IndexedDB unavailable
   }
 
-  return getHardcodedResponse(input);
+  return "The knowledge base doesn't have any documents uploaded yet. Once an admin uploads reference material, I'll be able to answer questions based on that content. In the meantime, feel free to ask me anything and I'll do my best to help.";
 }
 
 function formatContent(text: string) {
-  return text.split("\n").map((line, i) => {
+  return text.split("\n").map((line) => {
     const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>');
-    return `<span key="${i}">${formatted}<br/></span>`;
+    return `<span>${formatted}<br/></span>`;
   }).join("");
 }
-
-const iconMap: Record<string, React.ReactNode> = {
-  chart:    <BarChart3 size={13} />,
-  calendar: <Calendar size={13} />,
-  book:     <BookOpen size={13} />,
-  download: <Download size={13} />,
-};
 
 interface AgentViewProps { setActiveView: (v: string) => void; }
 
@@ -102,11 +43,7 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1, role: "agent", timestamp: "Now",
-      content: "Hello! I'm your **Client Guidance Agent**. I've reviewed your diagnostic results and toolkit activity. Based on your assessment, your organisation scores **67% overall maturity** with key gaps in Governance and Execution. How can I help you today?",
-      actions: [
-        { label: "View My Results", view: "results", icon: "chart" },
-        { label: "Book a Consultant", view: "booking", icon: "calendar" },
-      ],
+      content: "Hello! I'm your **Client Guidance Agent**, powered by Uhuru AI. Ask me anything about the content uploaded to the knowledge base and I'll help you find the information you need.",
     },
   ]);
   const [input, setInput]       = useState("");
@@ -128,7 +65,7 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
     setTimeout(async () => {
       const response = await getAgentResponse(text);
       setIsTyping(false);
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: "agent", content: response.content, timestamp: "Just now", actions: response.actions }]);
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: "agent", content: response, timestamp: "Just now" }]);
     }, 1800);
   };
 
@@ -168,15 +105,6 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
                 <div style={{ backgroundColor: msg.role === "agent" ? "var(--bg-elevated)" : `rgba(var(--accent-rgb),0.08)`, border: `1px solid ${msg.role === "agent" ? "var(--border)" : `rgba(var(--accent-rgb),0.2)`}`, borderRadius: msg.role === "agent" ? "4px 14px 14px 14px" : "14px 4px 14px 14px", padding: "14px 16px", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.65 }}>
                   <div dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }} />
                 </div>
-                {msg.actions && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {msg.actions.map((action, ai) => (
-                      <button key={ai} onClick={() => action.view && setActiveView(action.view)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, background: `rgba(var(--accent-rgb),0.08)`, border: `1px solid rgba(var(--accent-rgb),0.2)`, color: "var(--accent)", cursor: "pointer", fontSize: 12, fontFamily: "Montserrat, sans-serif", fontWeight: 600 }}>
-                        {iconMap[action.icon]} {action.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <div style={{ fontSize: 10, color: "var(--text-faint)" }}>{msg.timestamp}</div>
               </div>
             </div>
@@ -195,22 +123,13 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
           <div ref={bottomRef} />
         </div>
 
-        {/* Suggested prompts */}
-        <div style={{ padding: "10px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, overflowX: "auto" }}>
-          {suggestedPrompts.map((prompt, i) => (
-            <button key={i} onClick={() => sendMessage(prompt)} style={{ whiteSpace: "nowrap", padding: "6px 12px", borderRadius: 8, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)", cursor: "pointer", fontSize: 12, transition: "all 0.2s" }}>
-              {prompt}
-            </button>
-          ))}
-        </div>
-
         {/* Input */}
         <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 12 }}>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && sendMessage(input)}
-            placeholder="Ask the agent anything about your journey..."
+            placeholder="Ask the agent anything..."
             style={{ flex: 1, backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "Roboto, sans-serif" }}
           />
           <button
@@ -226,43 +145,6 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
 
       {/* Info panel */}
       <div style={{ width: 240, display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
-          <h4 style={{ margin: "0 0 14px", fontSize: 13, fontFamily: "Montserrat, sans-serif" }}>Active Agents</h4>
-          {[
-            { name: "Client Guidance",     status: "active",  color: "var(--accent)" },
-            { name: "Diagnostic & Scoring",status: "active",  color: "#007B5F"       },
-            { name: "Sales & CRM",         status: "standby", color: "#FF9933"       },
-            { name: "Consultant Briefing", status: "standby", color: "#8B5CF6"       },
-            { name: "Content Evolution",   status: "idle",    color: "var(--text-muted)" },
-          ].map(agent => (
-            <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--bg-elevated)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: agent.color }} />
-                <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{agent.name}</span>
-              </div>
-              <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5, backgroundColor: agent.status === "active" ? `rgba(var(--accent-rgb),0.08)` : "var(--bg-elevated)", color: agent.status === "active" ? "var(--accent)" : "var(--text-muted)", fontFamily: "Montserrat, sans-serif", fontWeight: 600 }}>
-                {agent.status}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
-          <h4 style={{ margin: "0 0 14px", fontSize: 13, fontFamily: "Montserrat, sans-serif" }}>Client Context</h4>
-          {[
-            { label: "Industry",   value: "Financial Services" },
-            { label: "Size",       value: "51–200 employees"   },
-            { label: "Toolkits",   value: "4 downloaded"       },
-            { label: "Diagnostic", value: "67% (Medium)"       },
-            { label: "Priority",   value: "Governance + Execution" },
-          ].map(item => (
-            <div key={item.label} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>{item.label}</div>
-              <div style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500 }}>{item.value}</div>
-            </div>
-          ))}
-        </div>
-
         {kbCount > 0 && (
           <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>

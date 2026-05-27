@@ -17,13 +17,7 @@ import SettingsModal from "./SettingsModal";
 import LandingScreen from "./LandingScreen";
 import { Notification } from "./NotificationPanel";
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 1, type: "agent",      title: "Guidance Agent",        message: "Based on your diagnostic, I have 3 new recommendations waiting for you.",               time: "2 min ago",  read: false, action: "View insights", view: "results"  },
-  { id: 2, type: "diagnostic", title: "Diagnostic Complete",   message: "Your maturity assessment is complete. Overall score: 67% — Medium Maturity.",            time: "1 hour ago", read: false, action: "See results",   view: "results"  },
-  { id: 3, type: "booking",    title: "Session Confirmed",     message: "Your governance review with Thabo Mokoena is confirmed for Mon 14 Apr at 09:00.",         time: "3 hours ago",read: false, action: "View booking",  view: "booking"  },
-  { id: 4, type: "lead",       title: "Hot Lead Alert",        message: "BotswanaPower Ltd scored HIGH urgency. Immediate follow-up recommended.",                 time: "5 hours ago",read: true,  action: "View CRM",      view: "admin"    },
-  { id: 5, type: "system",     title: "New Toolkit Available", message: "Financial Governance Toolkit v2.1 is now available in the library.",                     time: "Yesterday",  read: true,  action: "Browse toolkits",view: "toolkits" },
-];
+const INITIAL_NOTIFICATIONS: Notification[] = [];
 
 export default function CEPApp() {
   const [loggedIn, setLoggedIn]               = useState(false);
