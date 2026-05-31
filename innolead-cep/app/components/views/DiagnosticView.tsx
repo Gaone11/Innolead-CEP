@@ -26,9 +26,12 @@ const sections = [
   ]},
 ];
 
-interface DiagnosticViewProps { setActiveView: (v: string) => void; }
+interface DiagnosticViewProps {
+  setActiveView: (v: string) => void;
+  onSubmitScores?: (scores: { label: string; score: number; color: string }[]) => void;
+}
 
-export default function DiagnosticView({ setActiveView }: DiagnosticViewProps) {
+export default function DiagnosticView({ setActiveView, onSubmitScores }: DiagnosticViewProps) {
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers]               = useState<Record<string, number>>({});
   const [submitted, setSubmitted]           = useState(false);
@@ -189,7 +192,7 @@ export default function DiagnosticView({ setActiveView }: DiagnosticViewProps) {
             Next Section <ChevronRight size={16} />
           </button>
         ) : (
-          <button onClick={() => allAnswered && setSubmitted(true)} className={allAnswered ? "btn-primary" : ""}
+          <button onClick={() => { if (allAnswered) { setSubmitted(true); onSubmitScores?.(sections.map(s => ({ label: s.label, score: getSectionScore(s.id), color: s.color }))); } }} className={allAnswered ? "btn-primary" : ""}
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 24px", borderRadius: 10, border: "none", background: allAnswered ? undefined : "var(--bg-elevated)", color: allAnswered ? undefined : "var(--text-faint)", cursor: allAnswered ? "pointer" : "not-allowed", fontFamily: "Montserrat, sans-serif", fontWeight: 600, fontSize: 13 }}
           >
             Submit Assessment <Brain size={16} />

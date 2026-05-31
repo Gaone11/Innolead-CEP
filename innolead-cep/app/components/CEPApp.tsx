@@ -30,6 +30,7 @@ export default function CEPApp() {
   const [role, setRole]                       = useState("client");
   const [signOutConfirm, setSignOutConfirm]   = useState(false);
   const [theme, setTheme]                     = useState<"light" | "dark">("light");
+  const [diagnosticScores, setDiagnosticScores] = useState<{ label: string; score: number; color: string }[] | null>(null);
 
   const ADMIN_EMAILS = ["monti@uhuruai.co", "gaone@uhuruai.co"];
   const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase());
@@ -100,9 +101,9 @@ export default function CEPApp() {
     switch (activeView) {
       case "dashboard":  return <DashboardView  setActiveView={setActiveView} />;
       case "toolkits":   return <ToolkitsView />;
-      case "diagnostic": return <DiagnosticView setActiveView={setActiveView} />;
+      case "diagnostic": return <DiagnosticView setActiveView={setActiveView} onSubmitScores={setDiagnosticScores} />;
       case "agent":      return <AgentView      setActiveView={setActiveView} />;
-      case "results":    return <ResultsView    setActiveView={setActiveView} />;
+      case "results":    return <ResultsView    setActiveView={setActiveView} scores={diagnosticScores} />;
       case "booking":    return <BookingView />;
       case "admin":      return <AdminView />;
       case "consultant": return <ConsultantView />;
