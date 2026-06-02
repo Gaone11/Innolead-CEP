@@ -249,41 +249,98 @@ export interface DynamicQuestion {
   options: string[];
 }
 
+// Question templates per dimension — filled with topics extracted from KB docs
+const QUESTION_TEMPLATES: Record<string, string[]> = {
+  strategy: [
+    "Our organisation has a clear approach to {topic}.",
+    "We regularly review and adapt our {topic} practices.",
+    "Leadership actively drives {topic} across the organisation.",
+  ],
+  governance: [
+    "Our {topic} processes are well-documented and consistently followed.",
+    "We have effective {topic} mechanisms in place.",
+    "Our organisation proactively manages {topic} requirements.",
+  ],
+  execution: [
+    "Our {topic} capabilities meet organisational needs.",
+    "We apply {topic} principles consistently across projects.",
+    "Our {topic} processes are standardised and effective.",
+  ],
+  people: [
+    "Our organisation invests adequately in {topic}.",
+    "We have formal programmes supporting {topic}.",
+    "Leadership prioritises {topic} as a strategic objective.",
+  ],
+};
+
+// Extract the most relevant topic phrases from documents for a dimension
+function extractTopics(dimId: string, documents: KBDocument[]): { topic: string; sourceDoc: string }[] {
+  const keywords = DIMENSION_KEYWORDS[dimId] || [];
+  const topics: { topic: string; sourceDoc: string; score: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const doc of documents) {
+    const sentences = doc.text.split(/[.!?\n]+/).filter(s => {
+      const trimmed = s.trim();
+      return trimmed.length > 15 && trimmed.length < 200;
+    });
+
+    for (const sentence of sentences) {
+      const sLower = sentence.toLowerCase();
+      const matchedKws = keywords.filter(kw => sLower.includes(kw));
+      if (matchedKws.length === 0) continue;
+
+      // Extract a short topic phrase (2–5 words) around the matched keyword
+      for (const kw of matchedKws) {
+        const idx = sLower.indexOf(kw);
+        const words = sentence.trim().split(/\s+/);
+        const kwWordIdx = words.findIndex(w => w.toLowerCase().includes(kw));
+        if (kwWordIdx < 0) continue;
+
+        // Take the keyword and 1-3 surrounding words to form a natural topic
+        const start = Math.max(0, kwWordIdx - 1);
+        const end = Math.min(words.length, kwWordIdx + 3);
+        let topic = words.slice(start, end).join(" ")
+          .replace(/^[^a-zA-Z]+/, "")  // strip leading punctuation
+          .replace(/[^a-zA-Z]+$/, "")   // strip trailing punctuation
+          .toLowerCase();
+
+        // Clean up common filler starts
+        topic = topic.replace(/^(the|a|an|our|your|their|its|and|or|to|for|in|on|of|with)\s+/i, "");
+
+        if (topic.length < 4 || topic.split(/\s+/).length < 1 || seen.has(topic)) continue;
+        seen.add(topic);
+        topics.push({ topic, sourceDoc: doc.name, score: matchedKws.length });
+      }
+    }
+  }
+
+  return topics
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
 export function generateDynamicQuestions(documents: KBDocument[]): DynamicQuestion[] {
   if (documents.length === 0) return [];
 
   const questions: DynamicQuestion[] = [];
   let qIndex = 0;
 
-  for (const [dimId, keywords] of Object.entries(DIMENSION_KEYWORDS)) {
-    for (const doc of documents) {
-      const textLower = doc.text.toLowerCase();
-      const sentences = doc.text.split(/[.!?\n]+/).filter(s => s.trim().length > 30 && s.trim().length < 300);
+  for (const dimId of Object.keys(DIMENSION_KEYWORDS)) {
+    const templates = QUESTION_TEMPLATES[dimId] || [];
+    const topics = extractTopics(dimId, documents);
 
-      // Find sentences that mention dimension-relevant topics
-      const relevantSentences = sentences.filter(s => {
-        const sLower = s.toLowerCase();
-        return keywords.some(kw => sLower.includes(kw));
+    for (let i = 0; i < Math.min(topics.length, 2); i++) {
+      const template = templates[i % templates.length];
+      const { topic, sourceDoc } = topics[i];
+      qIndex++;
+      questions.push({
+        id: `kb_${dimId}_${qIndex}`,
+        text: template.replace("{topic}", topic),
+        sourceDoc,
+        dimension: dimId,
+        options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
       });
-
-      for (const sentence of relevantSentences.slice(0, 2)) {
-        // Convert the document statement into an assessment question
-        const cleaned = sentence.trim().replace(/^[-•*]\s*/, "");
-        // Skip very short or very generic sentences
-        if (cleaned.split(/\s+/).length < 5) continue;
-
-        qIndex++;
-        questions.push({
-          id: `kb_${dimId}_${qIndex}`,
-          text: `Based on "${doc.name}": Our organisation effectively implements — "${cleaned}"`,
-          sourceDoc: doc.name,
-          dimension: dimId,
-          options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-        });
-
-        if (questions.filter(q => q.dimension === dimId).length >= 3) break;
-      }
-      if (questions.filter(q => q.dimension === dimId).length >= 3) break;
     }
   }
 
