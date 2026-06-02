@@ -249,98 +249,107 @@ export interface DynamicQuestion {
   options: string[];
 }
 
-// Question templates per dimension — filled with topics extracted from KB docs
-const QUESTION_TEMPLATES: Record<string, string[]> = {
+// Clean, predefined question templates per dimension.
+// Each dimension has a pool of questions — we pick ones that match KB document topics.
+const KB_QUESTION_POOL: Record<string, { trigger: string[]; text: string }[]> = {
   strategy: [
-    "Our organisation has a clear approach to {topic}.",
-    "We regularly review and adapt our {topic} practices.",
-    "Leadership actively drives {topic} across the organisation.",
+    { trigger: ["strategy", "strategic"], text: "Our organisation has a clearly defined strategic framework informed by our internal documentation." },
+    { trigger: ["vision", "mission"], text: "Our vision and mission are well-communicated and guide day-to-day decision-making." },
+    { trigger: ["kpi", "objective", "goal"], text: "We track strategic KPIs and objectives consistently across all departments." },
+    { trigger: ["roadmap", "planning"], text: "Our strategic roadmap is reviewed and updated at least annually." },
+    { trigger: ["competitive", "market"], text: "We conduct regular market and competitive analysis to inform our strategy." },
+    { trigger: ["swot", "pestle"], text: "We use structured analytical frameworks (e.g. SWOT, PESTLE) to assess strategic positioning." },
+    { trigger: ["alignment", "direction"], text: "There is strong alignment between our strategy and operational execution." },
+    { trigger: ["growth"], text: "Our growth strategy is documented with clear milestones and accountability." },
   ],
   governance: [
-    "Our {topic} processes are well-documented and consistently followed.",
-    "We have effective {topic} mechanisms in place.",
-    "Our organisation proactively manages {topic} requirements.",
+    { trigger: ["governance", "board"], text: "Our governance structures are clearly documented and regularly reviewed." },
+    { trigger: ["compliance", "regulation"], text: "We have a systematic approach to tracking and meeting compliance obligations." },
+    { trigger: ["risk"], text: "Our risk management framework is proactive rather than reactive." },
+    { trigger: ["audit"], text: "Internal and external audit findings are acted upon within defined timeframes." },
+    { trigger: ["policy"], text: "Our organisational policies are accessible, up-to-date, and consistently enforced." },
+    { trigger: ["oversight", "accountability"], text: "There are clear accountability structures for governance oversight." },
+    { trigger: ["ethics", "transparency"], text: "We have a strong culture of ethical conduct and transparency in reporting." },
+    { trigger: ["controls", "framework"], text: "Our internal controls framework is robust and regularly tested." },
   ],
   execution: [
-    "Our {topic} capabilities meet organisational needs.",
-    "We apply {topic} principles consistently across projects.",
-    "Our {topic} processes are standardised and effective.",
+    { trigger: ["project", "programme"], text: "Our project and programme management practices follow a standardised methodology." },
+    { trigger: ["delivery", "implementation"], text: "We consistently deliver initiatives on time and within scope." },
+    { trigger: ["budget"], text: "Projects are tracked against budget with regular variance reporting." },
+    { trigger: ["change management", "change"], text: "Change management is embedded in how we deliver projects and initiatives." },
+    { trigger: ["agile", "waterfall"], text: "We select and apply appropriate delivery methodologies based on project needs." },
+    { trigger: ["milestone", "timeline"], text: "Project milestones and timelines are clearly defined and monitored." },
+    { trigger: ["resource", "capacity"], text: "We have effective resource and capacity planning processes in place." },
+    { trigger: ["pmo", "portfolio"], text: "Our portfolio and PMO function provides effective oversight of all initiatives." },
   ],
   people: [
-    "Our organisation invests adequately in {topic}.",
-    "We have formal programmes supporting {topic}.",
-    "Leadership prioritises {topic} as a strategic objective.",
+    { trigger: ["talent", "succession"], text: "We have a formal talent development and succession planning programme." },
+    { trigger: ["engagement"], text: "Employee engagement is measured regularly and results drive meaningful action." },
+    { trigger: ["leadership"], text: "Our leadership development programmes are effective and well-attended." },
+    { trigger: ["training", "development"], text: "Staff have access to relevant training and professional development opportunities." },
+    { trigger: ["retention", "wellbeing"], text: "We invest in employee wellbeing and have strong retention strategies." },
+    { trigger: ["diversity", "inclusion"], text: "Diversity and inclusion are prioritised with measurable goals and outcomes." },
+    { trigger: ["performance"], text: "Our performance management system is fair, transparent, and development-focused." },
+    { trigger: ["culture"], text: "Our organisational culture is intentionally shaped and regularly assessed." },
   ],
 };
-
-// Extract the most relevant topic phrases from documents for a dimension
-function extractTopics(dimId: string, documents: KBDocument[]): { topic: string; sourceDoc: string }[] {
-  const keywords = DIMENSION_KEYWORDS[dimId] || [];
-  const topics: { topic: string; sourceDoc: string; score: number }[] = [];
-  const seen = new Set<string>();
-
-  for (const doc of documents) {
-    const sentences = doc.text.split(/[.!?\n]+/).filter(s => {
-      const trimmed = s.trim();
-      return trimmed.length > 15 && trimmed.length < 200;
-    });
-
-    for (const sentence of sentences) {
-      const sLower = sentence.toLowerCase();
-      const matchedKws = keywords.filter(kw => sLower.includes(kw));
-      if (matchedKws.length === 0) continue;
-
-      // Extract a short topic phrase (2–5 words) around the matched keyword
-      for (const kw of matchedKws) {
-        const idx = sLower.indexOf(kw);
-        const words = sentence.trim().split(/\s+/);
-        const kwWordIdx = words.findIndex(w => w.toLowerCase().includes(kw));
-        if (kwWordIdx < 0) continue;
-
-        // Take the keyword and 1-3 surrounding words to form a natural topic
-        const start = Math.max(0, kwWordIdx - 1);
-        const end = Math.min(words.length, kwWordIdx + 3);
-        let topic = words.slice(start, end).join(" ")
-          .replace(/^[^a-zA-Z]+/, "")  // strip leading punctuation
-          .replace(/[^a-zA-Z]+$/, "")   // strip trailing punctuation
-          .toLowerCase();
-
-        // Clean up common filler starts
-        topic = topic.replace(/^(the|a|an|our|your|their|its|and|or|to|for|in|on|of|with)\s+/i, "");
-
-        if (topic.length < 4 || topic.split(/\s+/).length < 1 || seen.has(topic)) continue;
-        seen.add(topic);
-        topics.push({ topic, sourceDoc: doc.name, score: matchedKws.length });
-      }
-    }
-  }
-
-  return topics
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
-}
 
 export function generateDynamicQuestions(documents: KBDocument[]): DynamicQuestion[] {
   if (documents.length === 0) return [];
 
+  // Collect all keywords from all documents
+  const allKeywords = new Set<string>();
+  const keywordToDoc = new Map<string, string>();
+  for (const doc of documents) {
+    for (const kw of doc.keywords) {
+      allKeywords.add(kw);
+      if (!keywordToDoc.has(kw)) keywordToDoc.set(kw, doc.name);
+    }
+  }
+
   const questions: DynamicQuestion[] = [];
   let qIndex = 0;
 
-  for (const dimId of Object.keys(DIMENSION_KEYWORDS)) {
-    const templates = QUESTION_TEMPLATES[dimId] || [];
-    const topics = extractTopics(dimId, documents);
+  for (const [dimId, pool] of Object.entries(KB_QUESTION_POOL)) {
+    let dimCount = 0;
+    for (const item of pool) {
+      if (dimCount >= 2) break;
 
-    for (let i = 0; i < Math.min(topics.length, 2); i++) {
-      const template = templates[i % templates.length];
-      const { topic, sourceDoc } = topics[i];
-      qIndex++;
-      questions.push({
-        id: `kb_${dimId}_${qIndex}`,
-        text: template.replace("{topic}", topic),
-        sourceDoc,
-        dimension: dimId,
-        options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+      // Check if any trigger keyword appears in the KB document keywords
+      const matched = item.trigger.some(t => {
+        for (const kw of allKeywords) {
+          if (kw.includes(t) || t.includes(kw)) return true;
+        }
+        return false;
       });
+
+      if (matched) {
+        // Find which document matched
+        const matchedTrigger = item.trigger.find(t => {
+          for (const kw of allKeywords) {
+            if (kw.includes(t) || t.includes(kw)) return true;
+          }
+          return false;
+        }) || item.trigger[0];
+
+        let sourceDoc = "";
+        for (const kw of allKeywords) {
+          if (kw.includes(matchedTrigger) || matchedTrigger.includes(kw)) {
+            sourceDoc = keywordToDoc.get(kw) || "";
+            break;
+          }
+        }
+
+        qIndex++;
+        dimCount++;
+        questions.push({
+          id: `kb_${dimId}_${qIndex}`,
+          text: item.text,
+          sourceDoc,
+          dimension: dimId,
+          options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+        });
+      }
     }
   }
 
