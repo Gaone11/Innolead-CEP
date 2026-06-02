@@ -193,6 +193,127 @@ export function extractKeywords(text: string, topN = 50): string[] {
 
 // ── Search / Match ──
 
+// ── Dimension-Aware Search ──
+
+// Maps diagnostic dimensions to keywords for matching against KB documents
+const DIMENSION_KEYWORDS: Record<string, string[]> = {
+  strategy: ["strategy", "strategic", "vision", "mission", "kpi", "objective", "goal", "roadmap", "planning", "competitive", "market", "growth", "alignment", "direction", "swot", "pestle", "balanced scorecard"],
+  governance: ["governance", "compliance", "risk", "audit", "policy", "regulation", "board", "oversight", "accountability", "ethics", "transparency", "reporting", "controls", "framework", "iso", "king iv"],
+  execution: ["execution", "project", "delivery", "implementation", "budget", "timeline", "change management", "agile", "waterfall", "milestone", "resource", "capacity", "programme", "portfolio", "pmo"],
+  people: ["people", "culture", "talent", "engagement", "leadership", "succession", "development", "training", "retention", "wellbeing", "diversity", "inclusion", "performance", "hr", "human resource", "employee"],
+};
+
+export function searchByDimension(dimensionId: string, documents: KBDocument[]): { doc: KBDocument; score: number; snippets: string[] }[] {
+  const keywords = DIMENSION_KEYWORDS[dimensionId] || [];
+  if (keywords.length === 0 || documents.length === 0) return [];
+
+  const results = documents.map(doc => {
+    const textLower = doc.text.toLowerCase();
+    let score = 0;
+    const matchedSnippets: string[] = [];
+
+    for (const kw of keywords) {
+      const regex = new RegExp(kw, "gi");
+      const matches = textLower.match(regex);
+      if (matches) {
+        score += matches.length;
+        if (doc.keywords.some(dk => dk.includes(kw) || kw.includes(dk))) score += 2;
+      }
+    }
+
+    if (score > 0) {
+      const sentences = doc.text.split(/[.!?\n]+/).filter(s => s.trim().length > 20);
+      for (const sentence of sentences) {
+        const sLower = sentence.toLowerCase();
+        if (keywords.some(kw => sLower.includes(kw))) {
+          matchedSnippets.push(sentence.trim());
+          if (matchedSnippets.length >= 3) break;
+        }
+      }
+      if (matchedSnippets.length === 0 && sentences.length > 0) {
+        matchedSnippets.push(sentences[0].trim());
+      }
+    }
+
+    return { doc, score, snippets: matchedSnippets.map(s => s.length > 250 ? s.slice(0, 250) + "..." : s) };
+  });
+
+  return results.filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+}
+
+export interface DynamicQuestion {
+  id: string;
+  text: string;
+  sourceDoc: string;
+  dimension: string;
+  options: string[];
+}
+
+export function generateDynamicQuestions(documents: KBDocument[]): DynamicQuestion[] {
+  if (documents.length === 0) return [];
+
+  const questions: DynamicQuestion[] = [];
+  let qIndex = 0;
+
+  for (const [dimId, keywords] of Object.entries(DIMENSION_KEYWORDS)) {
+    for (const doc of documents) {
+      const textLower = doc.text.toLowerCase();
+      const sentences = doc.text.split(/[.!?\n]+/).filter(s => s.trim().length > 30 && s.trim().length < 300);
+
+      // Find sentences that mention dimension-relevant topics
+      const relevantSentences = sentences.filter(s => {
+        const sLower = s.toLowerCase();
+        return keywords.some(kw => sLower.includes(kw));
+      });
+
+      for (const sentence of relevantSentences.slice(0, 2)) {
+        // Convert the document statement into an assessment question
+        const cleaned = sentence.trim().replace(/^[-•*]\s*/, "");
+        // Skip very short or very generic sentences
+        if (cleaned.split(/\s+/).length < 5) continue;
+
+        qIndex++;
+        questions.push({
+          id: `kb_${dimId}_${qIndex}`,
+          text: `Based on "${doc.name}": Our organisation effectively implements — "${cleaned}"`,
+          sourceDoc: doc.name,
+          dimension: dimId,
+          options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+        });
+
+        if (questions.filter(q => q.dimension === dimId).length >= 3) break;
+      }
+      if (questions.filter(q => q.dimension === dimId).length >= 3) break;
+    }
+  }
+
+  return questions;
+}
+
+export function getDimensionInsights(dimensionId: string, score: number, documents: KBDocument[]): string[] {
+  const results = searchByDimension(dimensionId, documents);
+  if (results.length === 0) return [];
+
+  const insights: string[] = [];
+  const level = score >= 70 ? "strong" : score >= 45 ? "developing" : "foundational";
+
+  for (const r of results.slice(0, 2)) {
+    for (const snippet of r.snippets.slice(0, 1)) {
+      if (level === "foundational") {
+        insights.push(`From "${r.doc.name}": Consider focusing on — ${snippet}`);
+      } else if (level === "developing") {
+        insights.push(`From "${r.doc.name}": To strengthen this area — ${snippet}`);
+      } else {
+        insights.push(`From "${r.doc.name}": Continue leveraging — ${snippet}`);
+      }
+    }
+  }
+
+  return insights;
+}
+
+// ── General Search ──
+
 export function searchDocuments(query: string, documents: KBDocument[]): { doc: KBDocument; score: number; snippet: string }[] {
   const queryWords = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2);
   if (queryWords.length === 0 || documents.length === 0) return [];

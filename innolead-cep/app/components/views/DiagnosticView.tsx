@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight, ChevronLeft, CheckCircle, Circle, Brain, BarChart3 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, ChevronLeft, CheckCircle, Circle, Brain, BarChart3, Database } from "lucide-react";
+import { getAllDocuments, generateDynamicQuestions, type DynamicQuestion } from "../../lib/knowledgeBase";
 
-const sections = [
+const baseSections = [
   { id: "strategy",   label: "Strategic Clarity",      color: "var(--accent)", questions: [
     { id: "s1", text: "Our organisation has a clearly documented and communicated 3–5 year strategy.",          options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"] },
     { id: "s2", text: "Leadership reviews strategic progress against defined KPIs on a quarterly basis.",        options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"] },
@@ -35,6 +36,35 @@ export default function DiagnosticView({ setActiveView, onSubmitScores }: Diagno
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers]               = useState<Record<string, number>>({});
   const [submitted, setSubmitted]           = useState(false);
+  const [kbQuestions, setKbQuestions]        = useState<DynamicQuestion[]>([]);
+  const [kbLoaded, setKbLoaded]             = useState(false);
+
+  // Load dynamic questions from Knowledge Base documents
+  useEffect(() => {
+    getAllDocuments()
+      .then(docs => {
+        if (docs.length > 0) {
+          const dynQs = generateDynamicQuestions(docs);
+          setKbQuestions(dynQs);
+        }
+        setKbLoaded(true);
+      })
+      .catch(() => setKbLoaded(true));
+  }, []);
+
+  // Merge KB questions into sections
+  const sections = baseSections.map(sec => {
+    const extras = kbQuestions
+      .filter(q => q.dimension === sec.id)
+      .map(q => ({ id: q.id, text: q.text, options: q.options, fromKB: true, sourceDoc: q.sourceDoc }));
+    return {
+      ...sec,
+      questions: [
+        ...sec.questions.map(q => ({ ...q, fromKB: false, sourceDoc: "" })),
+        ...extras,
+      ],
+    };
+  });
 
   const section        = sections[currentSection];
   const totalQuestions = sections.reduce((a, s) => a + s.questions.length, 0);
@@ -145,6 +175,14 @@ export default function DiagnosticView({ setActiveView, onSubmitScores }: Diagno
         </div>
       </div>
 
+      {/* KB info banner */}
+      {kbQuestions.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", marginBottom: 20, backgroundColor: "rgba(var(--accent-rgb),0.06)", border: "1px solid rgba(var(--accent-rgb),0.15)", borderRadius: 10, fontSize: 12, color: "var(--text-secondary)" }}>
+          <Database size={14} color="var(--accent)" />
+          <span><strong style={{ color: "var(--accent)" }}>{kbQuestions.length} additional question{kbQuestions.length !== 1 ? "s" : ""}</strong> generated from Knowledge Base documents — look for the <strong style={{ color: "var(--accent)" }}>KB</strong> badge</span>
+        </div>
+      )}
+
       {/* Questions */}
       <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 28, marginBottom: 20, boxShadow: "var(--card-shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
@@ -154,10 +192,17 @@ export default function DiagnosticView({ setActiveView, onSubmitScores }: Diagno
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           {section.questions.map((q, qi) => (
             <div key={q.id} className="slide-in-left" style={{ animationDelay: `${qi * 0.1}s` }}>
-              <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--text-primary)", lineHeight: 1.6, fontWeight: 500 }}>
-                <span style={{ color: section.color, fontFamily: "Montserrat, sans-serif", fontWeight: 700, marginRight: 6 }}>Q{qi + 1}.</span>
-                {q.text}
-              </p>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "0 0 14px" }}>
+                <p style={{ margin: 0, fontSize: 14, color: "var(--text-primary)", lineHeight: 1.6, fontWeight: 500, flex: 1 }}>
+                  <span style={{ color: section.color, fontFamily: "Montserrat, sans-serif", fontWeight: 700, marginRight: 6 }}>Q{qi + 1}.</span>
+                  {q.text}
+                </p>
+                {q.fromKB && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--accent)", backgroundColor: "rgba(var(--accent-rgb),0.08)", border: "1px solid rgba(var(--accent-rgb),0.2)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap", fontFamily: "Montserrat, sans-serif", fontWeight: 600, flexShrink: 0, marginTop: 2 }}>
+                    <Database size={10} /> KB
+                  </span>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {q.options.map((opt, oi) => {
                   const selected = answers[q.id] === oi;

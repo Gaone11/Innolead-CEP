@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Brain, User, Zap, RefreshCw, Database } from "lucide-react";
-import { getAllDocuments, searchDocuments } from "../../lib/knowledgeBase";
+import { Send, Brain, User, Zap, RefreshCw, Database, BarChart3 } from "lucide-react";
+import { getAllDocuments, searchDocuments, searchByDimension, getDimensionInsights } from "../../lib/knowledgeBase";
 
 interface Message {
   id: number;
@@ -11,23 +11,119 @@ interface Message {
   timestamp: string;
 }
 
-async function getAgentResponse(input: string): Promise<string> {
+interface DiagnosticScore {
+  label: string;
+  score: number;
+  color: string;
+}
+
+const DIMENSION_MAP: Record<string, string> = {
+  "Strategic Clarity": "strategy",
+  "Governance & Compliance": "governance",
+  "Execution Capability": "execution",
+  "People & Culture": "people",
+};
+
+async function getAgentResponse(input: string, scores: DiagnosticScore[] | null): Promise<string> {
   try {
     const docs = await getAllDocuments();
+    const inputLower = input.toLowerCase();
+
+    // Check if user is asking for recommendations based on diagnostic
+    const isAskingRecommendations = /recommend|improve|weak|low|score|diagnostic|result|assessment|action|suggest|help me|what should/i.test(input);
+
+    // If we have both scores and documents and user wants recommendations
+    if (isAskingRecommendations && scores && scores.length > 0 && docs.length > 0) {
+      const sorted = [...scores].sort((a, b) => a.score - b.score);
+      const weakest = sorted.slice(0, 2);
+      const strongest = sorted.slice(-1);
+
+      let response = "**Based on your diagnostic results and the knowledge base, here are tailored recommendations:**\n\n";
+
+      for (const dim of weakest) {
+        const dimId = DIMENSION_MAP[dim.label] || "";
+        const insights = getDimensionInsights(dimId, dim.score, docs);
+        const level = dim.score >= 70 ? "strong" : dim.score >= 45 ? "developing" : "needs attention";
+
+        response += `**${dim.label}** (${dim.score}% — ${level}):\n`;
+        if (insights.length > 0) {
+          for (const insight of insights) {
+            response += `• ${insight}\n`;
+          }
+        } else {
+          response += `• This area scored ${dim.score}%. Consider uploading relevant documents to the Knowledge Base for more specific guidance.\n`;
+        }
+        response += "\n";
+      }
+
+      if (strongest.length > 0) {
+        const s = strongest[0];
+        response += `**${s.label}** (${s.score}% — strength): This is your strongest dimension. `;
+        const dimId = DIMENSION_MAP[s.label] || "";
+        const insights = getDimensionInsights(dimId, s.score, docs);
+        if (insights.length > 0) {
+          response += insights[0];
+        } else {
+          response += "Continue building on this foundation.";
+        }
+        response += "\n\n";
+      }
+
+      response += "Would you like me to dive deeper into any specific dimension?";
+      return response;
+    }
+
+    // If scores exist and user asks about a specific dimension
+    if (scores && scores.length > 0) {
+      for (const dim of scores) {
+        const dimId = DIMENSION_MAP[dim.label] || "";
+        if (inputLower.includes(dimId) || inputLower.includes(dim.label.toLowerCase())) {
+          const insights = getDimensionInsights(dimId, dim.score, docs);
+          let response = `**${dim.label} — ${dim.score}%**\n\n`;
+          if (insights.length > 0) {
+            response += "Here's what the knowledge base suggests for this dimension:\n\n";
+            for (const insight of insights) {
+              response += `• ${insight}\n`;
+            }
+          } else if (docs.length > 0) {
+            response += "I couldn't find specific guidance for this dimension in the uploaded documents. Try uploading materials related to " + dim.label.toLowerCase() + ".";
+          }
+          response += "\n\nWould you like recommendations for another dimension?";
+          return response;
+        }
+      }
+    }
+
+    // Standard KB search
     if (docs.length > 0) {
       const results = searchDocuments(input, docs);
       if (results.length > 0) {
         const top = results.slice(0, 3);
         const snippets = top.map((r, i) => `**${i + 1}. From "${r.doc.name}":**\n${r.snippet}`).join("\n\n");
-        return `Based on the knowledge base, here's what I found:\n\n${snippets}\n\n${top.length > 1 ? `I found relevant information across **${top.length} documents**. ` : ""}Would you like me to go deeper into any of these topics?`;
+        let response = `Based on the knowledge base, here's what I found:\n\n${snippets}`;
+        if (top.length > 1) response += `\n\nI found relevant information across **${top.length} documents**.`;
+
+        // If scores exist, add a nudge about recommendations
+        if (scores && scores.length > 0) {
+          response += "\n\nI also have your diagnostic results — ask me for **recommendations** to get personalised insights based on your scores.";
+        }
+        response += "\n\nWould you like me to go deeper into any of these topics?";
+        return response;
       }
-      return "I searched the knowledge base but couldn't find a direct match for your question. Could you try rephrasing, or ask about a topic covered in the uploaded documents?";
+      return "I searched the knowledge base but couldn't find a direct match for your question. Could you try rephrasing, or ask about a topic covered in the uploaded documents?" +
+        (scores && scores.length > 0 ? " You can also ask me for **recommendations** based on your diagnostic results." : "");
     }
   } catch {
     // IndexedDB unavailable
   }
 
-  return "The knowledge base doesn't have any documents uploaded yet. Once an admin uploads reference material, I'll be able to answer questions based on that content. In the meantime, feel free to ask me anything and I'll do my best to help.";
+  if (scores && scores.length > 0) {
+    const sorted = [...scores].sort((a, b) => a.score - b.score);
+    const overall = Math.round(scores.reduce((a, s) => a + s.score, 0) / scores.length);
+    return `I don't have any knowledge base documents to reference yet, but I can see your diagnostic results (overall **${overall}%**).\n\nYour weakest area is **${sorted[0].label}** at **${sorted[0].score}%**. Once an admin uploads relevant documents, I'll be able to provide specific guidance from your organisation's materials.\n\nIn the meantime, ask me about any dimension and I'll share general best practices.`;
+  }
+
+  return "The knowledge base doesn't have any documents uploaded yet. Once an admin uploads reference material, I'll be able to answer questions based on that content. Complete the **diagnostic assessment** first, and I'll be able to give you tailored recommendations.";
 }
 
 function formatContent(text: string) {
@@ -37,13 +133,19 @@ function formatContent(text: string) {
   }).join("");
 }
 
-interface AgentViewProps { setActiveView: (v: string) => void; }
+interface AgentViewProps {
+  setActiveView: (v: string) => void;
+  diagnosticScores?: DiagnosticScore[] | null;
+}
 
-export default function AgentView({ setActiveView }: AgentViewProps) {
+export default function AgentView({ setActiveView, diagnosticScores }: AgentViewProps) {
+  const hasScores = diagnosticScores && diagnosticScores.length > 0;
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1, role: "agent", timestamp: "Now",
-      content: "Hello! I'm your **Client Guidance Agent**, powered by Uhuru AI. Ask me anything about the content uploaded to the knowledge base and I'll help you find the information you need.",
+      content: hasScores
+        ? `Hello! I'm your **Client Guidance Agent**, powered by Uhuru AI. I can see you've completed your diagnostic assessment. Ask me for **recommendations** and I'll cross-reference your scores with the knowledge base to give you tailored insights.`
+        : "Hello! I'm your **Client Guidance Agent**, powered by Uhuru AI. Ask me anything about the content uploaded to the knowledge base and I'll help you find the information you need.",
     },
   ]);
   const [input, setInput]       = useState("");
@@ -63,7 +165,7 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
     setInput("");
     setIsTyping(true);
     setTimeout(async () => {
-      const response = await getAgentResponse(text);
+      const response = await getAgentResponse(text, diagnosticScores ?? null);
       setIsTyping(false);
       setMessages(prev => [...prev, { id: Date.now() + 1, role: "agent", content: response, timestamp: "Just now" }]);
     }, 1800);
@@ -145,6 +247,28 @@ export default function AgentView({ setActiveView }: AgentViewProps) {
 
       {/* Info panel */}
       <div style={{ width: 240, display: "flex", flexDirection: "column", gap: 14 }}>
+        {hasScores && (
+          <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <BarChart3 size={14} color="var(--accent)" />
+              <span style={{ fontSize: 12, color: "var(--accent)", fontFamily: "Montserrat, sans-serif", fontWeight: 700 }}>YOUR SCORES</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {diagnosticScores!.map(s => (
+                <div key={s.label}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
+                    <span style={{ color: "var(--text-secondary)" }}>{s.label}</span>
+                    <span style={{ fontWeight: 700, color: s.color, fontFamily: "Montserrat, sans-serif" }}>{s.score}%</span>
+                  </div>
+                  <div style={{ height: 4, backgroundColor: "var(--bg-elevated)", borderRadius: 2 }}>
+                    <div style={{ height: "100%", width: `${s.score}%`, backgroundColor: s.color, borderRadius: 2, transition: "width 0.8s ease" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {kbCount > 0 && (
           <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 18, boxShadow: "var(--card-shadow)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>

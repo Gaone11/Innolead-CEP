@@ -102,7 +102,7 @@ export default function CEPApp() {
       case "dashboard":  return <DashboardView  setActiveView={setActiveView} />;
       case "toolkits":   return <ToolkitsView />;
       case "diagnostic": return <DiagnosticView setActiveView={setActiveView} onSubmitScores={setDiagnosticScores} />;
-      case "agent":      return <AgentView      setActiveView={setActiveView} />;
+      case "agent":      return <AgentView      setActiveView={setActiveView} diagnosticScores={diagnosticScores} />;
       case "results":    return <ResultsView    setActiveView={setActiveView} scores={diagnosticScores} />;
       case "booking":    return <BookingView />;
       case "admin":      return <AdminView />;
