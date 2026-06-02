@@ -19,9 +19,29 @@ import { Notification } from "./NotificationPanel";
 
 const INITIAL_NOTIFICATIONS: Notification[] = [];
 
+// localStorage helpers — keyed per user email
+function loadUserData(email: string) {
+  try {
+    const raw = localStorage.getItem(`icep_user_${email.toLowerCase()}`);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveUserData(email: string, data: Record<string, unknown>) {
+  try {
+    const existing = loadUserData(email) || {};
+    localStorage.setItem(`icep_user_${email.toLowerCase()}`, JSON.stringify({ ...existing, ...data }));
+  } catch { /* ignore */ }
+}
+
 export default function CEPApp() {
-  const [loggedIn, setLoggedIn]               = useState(false);
-  const [userEmail, setUserEmail]             = useState("");
+  const [loggedIn, setLoggedIn]               = useState(() => {
+    try { return !!localStorage.getItem("icep_session_email"); } catch { return false; }
+  });
+  const [userEmail, setUserEmail]             = useState(() => {
+    try { return localStorage.getItem("icep_session_email") || ""; } catch { return ""; }
+  });
   const [activeView, setActiveView]           = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen]           = useState(false);
@@ -34,6 +54,28 @@ export default function CEPApp() {
 
   const ADMIN_EMAILS = ["monti@uhuruai.co", "gaone@uhuruai.co"];
   const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase());
+
+  // Restore persisted session on login
+  useEffect(() => {
+    if (!userEmail) return;
+    const saved = loadUserData(userEmail);
+    if (saved) {
+      if (saved.diagnosticScores) setDiagnosticScores(saved.diagnosticScores);
+      if (saved.theme) setTheme(saved.theme);
+    }
+  }, [userEmail]);
+
+  // Persist diagnostic scores whenever they change
+  useEffect(() => {
+    if (!userEmail || !diagnosticScores) return;
+    saveUserData(userEmail, { diagnosticScores });
+  }, [diagnosticScores, userEmail]);
+
+  // Persist theme preference
+  useEffect(() => {
+    if (!userEmail) return;
+    saveUserData(userEmail, { theme });
+  }, [theme, userEmail]);
 
   // Derive user profile from email
   const userProfiles: Record<string, { name: string; initials: string; org: string }> = {
@@ -86,13 +128,19 @@ export default function CEPApp() {
     setUserEmail("");
     setActiveView("dashboard");
     setNotifications(INITIAL_NOTIFICATIONS);
+    setDiagnosticScores(null);
+    try { localStorage.removeItem("icep_session_email"); } catch { /* ignore */ }
   }
 
   function handleSidebarSignOut()  { setSignOutConfirm(true); }
   function handleSidebarSettings() { setSettingsOpen(true); }
 
   if (!loggedIn) {
-    return <LandingScreen onLogin={(email: string) => { setUserEmail(email); setLoggedIn(true); }} />;
+    return <LandingScreen onLogin={(email: string) => {
+      setUserEmail(email);
+      setLoggedIn(true);
+      try { localStorage.setItem("icep_session_email", email); } catch { /* ignore */ }
+    }} />;
   }
 
   const sidebarWidth = sidebarCollapsed ? 64 : 240;
